@@ -189,7 +189,7 @@ for it, p_bach in enumerate(all_bach_paths):
     data = {
         'chords': chords,
         'key': k,
-        'metre': m
+        'metre': f"{m[0]}/{m[1]}"
     }
     if mode == 'minor':
         save_to_minor(data, file_name.split('\\')[-1].split('.')[0])
