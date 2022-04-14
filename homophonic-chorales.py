@@ -69,10 +69,18 @@ class Chord:
         }
 
 
+def duration_of_measure(measure):
+    dur = 0
+    for ch in measure:
+        dur += ch.duration
+    return dur
+
 bach_paths = corpus.corpora.CoreCorpus().getComposer('bach')
 all_bach_paths = corpus.getComposer('bach')
 print("Total number of Bach pieces to process from music21: %i" % len(all_bach_paths))
 for it, p_bach in enumerate(all_bach_paths):
+    if str(p_bach).endswith("krn"):
+        continue
     print(p_bach)
     p = corpus.parse(p_bach)
     if len(p.parts) != 4:
@@ -148,6 +156,7 @@ for it, p_bach in enumerate(all_bach_paths):
             raise Exception("Unknown key of " + file_name)
 
     chords = []
+    measure_duration = int(m[0])/int(m[1])
 
     for measure_index in range(len(parts[0])):
         sopranoNotes = parts[0][measure_index]
@@ -162,7 +171,13 @@ for it, p_bach in enumerate(all_bach_paths):
         tenorIndex = 0
         bassOffset = 0
         bassIndex = 0
-        chords.append([])
+        total_duration = 0
+        for sNote in sopranoNotes:
+            total_duration += sNote.duration
+        if total_duration > 0.25 or measure_index == 0 or measure_index == len(parts[0]) - 1:
+            chords.append([])
+            if len(chords[-1]) > 0 and chords[-1][-1].duration == measure_duration:
+                continue
         lastOffset = 0
         for i, sNote in enumerate(sopranoNotes):
             while altoOffset < sopranoOffset:
@@ -179,12 +194,38 @@ for it, p_bach in enumerate(all_bach_paths):
                     bassIndex += 1
             so = sopranoOffset
             sopranoOffset += sNote.duration
-            if (altoOffset == so and tenorOffset == so) or (
-                    altoOffset == so and bassOffset == so) or (
-                    tenorOffset == so and bassOffset == so):
+            maxOffset = max(sopranoOffset, tenorOffset, bassOffset, altoOffset)
+            if altoOffset == so and tenorOffset == so and bassOffset == so:
                 chords[-1].append(Chord(sNote, altoNotes[altoIndex], tenorNotes[tenorIndex], bassNotes[bassIndex],
                                         sopranoOffset - lastOffset))
                 lastOffset = sopranoOffset
+            elif altoOffset == so and tenorOffset == so:
+                chords[-1].append(Chord(sNote, altoNotes[altoIndex], tenorNotes[tenorIndex], bassNotes[bassIndex-1],
+                                        sopranoOffset - lastOffset))
+                lastOffset = sopranoOffset
+            elif altoOffset == so and bassOffset == so:
+                chords[-1].append(Chord(sNote, altoNotes[altoIndex], tenorNotes[tenorIndex-1], bassNotes[bassIndex],
+                                        sopranoOffset - lastOffset))
+                lastOffset = sopranoOffset
+            elif tenorOffset == so and bassOffset == so:
+                chords[-1].append(Chord(sNote, altoNotes[altoIndex-1], tenorNotes[tenorIndex], bassNotes[bassIndex],
+                                        sopranoOffset - lastOffset))
+                lastOffset = sopranoOffset
+            elif sopranoOffset == measure_duration:
+                chords[-1][-1].duration = measure_duration - duration_of_measure(chords[-1]) - chords[-1][-1].duration
+            else:
+                chords[-1][-1].duration += sNote.duration
+                lastOffset += sNote.duration
+
+    for i, measure in enumerate(chords):
+        if i == 0 or i == len(chords) - 1:
+            continue
+        dur = 0
+        for ch in measure:
+            dur += ch.duration
+        # if dur != measure_duration:
+        #     print("ERROR!!!!")
+
     k, mode = global_key.name.split(" ")
     data = {
         'chords': chords,
@@ -192,9 +233,9 @@ for it, p_bach in enumerate(all_bach_paths):
         'metre': f"{m[0]}/{m[1]}"
     }
     if mode == 'minor':
-        save_to_minor(data, file_name.split('\\')[-1].split('.')[0])
+        save_to_minor(data, file_name.split('\\')[-1][:-4])
     elif mode == 'major':
-        save_to_major(data, file_name.split('\\')[-1].split('.')[0])
+        save_to_major(data, file_name.split('\\')[-1][:-4])
     else:
         raise Exception("Unknown key representation")
 
