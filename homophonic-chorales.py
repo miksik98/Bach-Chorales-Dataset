@@ -101,6 +101,8 @@ for it, p_bach in enumerate(all_bach_paths):
                     if type(n) == note.Note:
                         last = n
                         parts[i][-1].append(get_hs_note(n))
+                    if type(n) == note.Rest and len(parts[i][-1]) > 0:
+                        parts[i][-1][-1].duration += (n.duration.quarterLength / 4)
     dur = []
 
     for i in parts:
@@ -211,8 +213,8 @@ for it, p_bach in enumerate(all_bach_paths):
                 chords[-1].append(Chord(sNote, altoNotes[altoIndex-1], tenorNotes[tenorIndex], bassNotes[bassIndex],
                                         sopranoOffset - lastOffset))
                 lastOffset = sopranoOffset
-            elif sopranoOffset == measure_duration:
-                chords[-1][-1].duration = measure_duration - duration_of_measure(chords[-1]) - chords[-1][-1].duration
+            # elif sopranoOffset == measure_duration:
+            #     chords[-1][-1].duration = measure_duration - duration_of_measure(chords[-1]) - chords[-1][-1].duration
             else:
                 chords[-1][-1].duration += sNote.duration
                 lastOffset += sNote.duration
